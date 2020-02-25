@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAXLINE 30
-#define MAXLEN 15
+#define MAXLINE 30 //Maximum input line - needed to initialize input_line[] array
+#define MAXLEN 15 //Maximum length of output line, that we print on the screen, output_line[] array length
 
 int getline(char input_line[], char output_line[]);
 int copy(char from[], char to[], int start, int stop);
@@ -26,7 +26,6 @@ int main()
     while ((len = getline(input_line, output_line)) > 0) {
         fold_line(input_line, output_line, len, 1);
     }
-
     return 0;
 }
 
@@ -37,20 +36,22 @@ int getline(char input_line[], char output_line[]){
     extern char buffer[];
     while ((c = getchar()) != EOF && c != '\n'){
         if (i == MAXLINE) {
-            //printf("01234567890123456789012345678900123456789012345678901234567890\n");
             input_line[i] = c;
-			fold_line(input_line, output_line, MAXLINE+1, 0); //intermediate folding for very long strings (more than the size of an array)
-			i = 0;
-			if (buffer_len > 0){
+            fold_line(input_line, output_line, MAXLINE+1, 0); //intermediate folding for very long strings (more than the size of an array)
+            i = 0;
+
+			//if intermediate folding finished with some buffer (characters of one word that started in one input_line[] and didn't end there)
+			//we put those characters in a new input_line[] first
+            if (buffer_len > 0){
                 for (i = 0; i < buffer_len; i++){
                     input_line[i] = buffer[i];
                 }
                 buffer_len = 0;
             }
-		} else {
-			input_line[i]=c;
-			i++;
-		}
+        } else {
+            input_line[i]=c;
+            i++;
+        }
     }
 
     if (c == '\n'){
@@ -64,6 +65,8 @@ int getline(char input_line[], char output_line[]){
     return i+1;
 }
 
+// We actually don't use this function anymore. Because we needed different
+// variations of this function inside fold_line() function
 int copy(char from[], char to[], int start_point, int end_point) {
     int i = 0;
     int j = 0;
@@ -92,13 +95,14 @@ void fold_line(char input_line[], char output_line[], int len, int finish_string
         skip_copying_to_output = 0;
         prev_point = last_char_before_new_string;
 
-        // The main part of the fold_line() function. We're searching for the last ' ' every MAXLEN characters
+        // The main and the simplest part of the fold_line() function. We're searching for the last ' ' every MAXLEN characters
+        // j and buffer_len - are used when there are multiple input_line[] arrays and we need to concatenate last words from one
+        // input_line[] and first words from another input_line[] IN ONE OUTPUT line :)
         for (i = prev_point; i < (prev_point + MAXLEN - j - buffer_len) && i < len; i++) {
             if (input_line[i] == ' '){
                 last_char_before_new_string = i + 1;
             }
         }
-
         // In case we got no words (string of blanks for example) or if one word fills all of the line (and more)
         // we just pass to the output full length line (= MAXLEN)
         // otherwise we are getting infinite while loop
@@ -110,7 +114,8 @@ void fold_line(char input_line[], char output_line[], int len, int finish_string
             if (j == 0){
                 last_char_before_new_string += MAXLEN; // can be optimized
             } else if (j > 0){
-                if (check_spaces(output_line, j) == 1){
+                if (check_spaces(output_line, j) == 1){ // There were blanks in the last line of the prev. input_line but
+                // the first word in new input_line[] is too long (no new blanks) and we need to pass it to a new line
                     output_line[j] = '\n';
                     output_line[j+1] = '\0';
                     j = 0;
@@ -141,7 +146,7 @@ void fold_line(char input_line[], char output_line[], int len, int finish_string
 
     // Last line or the only one line case
     // We must search for the last ' ' in current input_line. Because we can have a word that starts
-    // in one input_line[] and ends in the next input_line. The exception is when this is LAST input_line
+    // in one input_line[] and ends in the next input_line. The exception is when this is the LAST input_line
     // and we fold it with argument (finish_string = 1) - then we take all remained characters of input_line
     if (finish_string == 1){
         last_space = len;
@@ -172,7 +177,7 @@ void fold_line(char input_line[], char output_line[], int len, int finish_string
 // of this array (i.e. this part of the whole input string), but we remember last cursor position after printer character
 // for the next part of input string (i.e. next input_line[]) to continue from that place
 
-// When we're calling fold_line() function for the last time (from the main() function) then we put finish_string argument
+// When we're calling fold_line() function for the last time (from the main() function) then we pass finish_string=1 argument
 // to the fold_line() function, so it knows that this time last string must be closed with '\n' and '\0' and it must be printed
     if (finish_string == 1) {
         output_line[j] = '\n';
